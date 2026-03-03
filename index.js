@@ -5,7 +5,7 @@ let base64 = require('base64-stream');
 let stream = require('stream');
 let path = require('path');
 let os = require('os');
-let puppeteer = require('puppeteer');
+let { chromium } = require('playwright');
 let typeofFn = typeof function(){};
 let isFunction = x => typeof x === typeofFn;
 let Handlebars = require('handlebars');
@@ -65,12 +65,12 @@ let Cytosnap = function( opts = {} ){
     // top-level defaults -- none currently
   }, opts );
 
-  // options to pass to puppeteer.launch()
-  this.options.puppeteer = Object.assign({
+  // options to pass to chromium.launch()
+  this.options.playwright = Object.assign({
     // defaults
     args: opts.args, // backwards compat
     headless: true
-  }, opts.puppeteer);
+  }, opts.playwright);
 
   this.running = false;
 };
@@ -105,11 +105,10 @@ proto.start = function( next ){
   let snap = this;
 
   return Promise.try(function(){
-    return puppeteer.launch(snap.options.puppeteer);
+    return chromium.launch(snap.options.playwright);
   }).then(function( browser ){
     snap.browser = browser;
-
-    snap.running = true;
+    return browser.newPage().then( function(page){ snap.page = page; snap.running = true; } );
   }).then( callbackifyValue(next) ).catch( callbackifyError(next) );
 };
 
@@ -155,7 +154,7 @@ proto.shot = function( opts, next ){
   }).then(function( puppeteerPage ){
     page = puppeteerPage;
   }).then(function(){
-    return page.setViewport({ width: opts.width, height: opts.height });
+    return page.setViewportSize({ width: opts.width, height: opts.height });
   }).then(function(){
     let patchUri = function(uri){
       if( os.platform() === 'win32' ){
@@ -206,8 +205,8 @@ proto.shot = function( opts, next ){
     });
   }).then(function(){
     if( opts.resolveTo === 'json' ){ return null; } // can skip in json case
-
-    return page.screenshot({ type: opts.format, quality: opts.quality, encoding: 'base64' });
+    if( snap.options.format==='png'){ delete snap.options.quality; }
+    return page.screenshot( snap.options );
   }).then(function( b64Img ){
     switch( opts.resolvesTo ){
       case 'base64uri':

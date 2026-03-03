@@ -30,6 +30,7 @@
     "browserify": "^16.2.3",
     "cytoscape": "^3.2.19",
     "handlebars": "^4.0.12",
+    "playwright": "^1.58.2",
     "puppeteer": "^1.9.0"
   },
   "devDependencies": {
